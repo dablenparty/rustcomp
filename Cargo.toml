@@ -7,7 +7,7 @@ authors = ["Hunter Davenport"]
 categories = ["rust-patterns"]
 description = "Adds vector, map, set, and iterator comprehensions to Rust."
 documentation = "https://docs.rs/rustcomp"
-keywords = ["vector", "set", "map", "comprehension", "macro", "python"]
+keywords = ["vector", "comprehension", "macro", "python"]
 readme = "README.md"
 repository = "https://github.com/dablenparty/rustcomp"
 
