@@ -1,0 +1,22 @@
+name: Build and test with Cargo
+
+on:
+  push:
+    paths-ignore:
+      - "LICENSE"
+      - "README.md"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build and test with cargo
+        run: cargo test --verbose --tests --all-features --workspace
