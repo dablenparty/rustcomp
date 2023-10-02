@@ -1,11 +1,19 @@
 #![warn(clippy::all, clippy::pedantic)]
 //! Adds vector, set, map, and iterator comprehensions to Rust. This
-//! is achieved through various functional macros, which are:
-//! - [`vec_comp!`]: returns a `Vec`
-//! - [`set_comp!`]: returns a `HashSet`
-//! - [`map_comp!`]: returns a `HashMap`
-//! - [`iter_comp!`]: returns an iterator (this is used internally by
-//!                   `vec_comp` and `set_comp`)
+//! is achieved through two types of functional macro: iterator comprehensions
+//! and collection comprehensions. Iterator comprehensions return the raw iterator
+//! while collection comprehensions return a collection (e.g. `Vec`, `HashSet`, etc.).
+//!
+//! ## Iterator Comprehensions
+//!
+//! - [`iter_comp!`] yields values
+//! - [`map_iter_comp!`] yields key-value pairs as tuples
+//!
+//! ## Collection Comprehensions
+//!
+//! - [`vec_comp!`] returns `Vec`
+//! - [`set_comp!`] returns `HashSet`
+//! - [`map_comp!`] returns `HashMap`
 //!
 //! ## How to use
 //!
@@ -28,6 +36,8 @@
 //! a macro-based solution that didn't require nightly, so I settled on iterators
 //! in lieu of generators.
 
+// TODO: restructure docs to be easier to navigate
+
 /// Performs a special comprehension that returns a `HashMap`. This is
 /// different from the other comprehensions in that it requires two expressions:
 /// one for the key and one for the value. For more exhaustive documentation
@@ -45,11 +55,22 @@
 /// ```
 #[macro_export]
 macro_rules! map_comp {
+    ($($t:tt)*) => (
+        $crate::map_iter_comp!($($t)*)
+            .collect::<::std::collections::HashMap<_, _>>()
+    );
+}
+
+/// Generates an iterator that yields the results of the comprehension. This
+/// macro is specialized for `HashMap`s. For more information, see
+/// [`map_comp!`].
+#[macro_export]
+macro_rules! map_iter_comp {
     // the implementation is EXTREMELY similar to iter_comp, but not identical
     (@__ for $($vars:pat),+ in $iter:expr; $($recurse:tt)+) => {
         $iter
             .into_iter()
-            .flat_map(|$($vars),*| $crate::map_comp!(@__ $($recurse)+))
+            .flat_map(|$($vars),*| $crate::map_iter_comp!(@__ $($recurse)+))
     };
     (@__ for $($vars:pat),+ in $iter:expr => $keymap:expr, $valmap:expr $(, if $guard:expr)? $(,)?) => {
         $iter
@@ -64,8 +85,7 @@ macro_rules! map_comp {
             })
     };
     (for $($t:tt)+) => {
-        $crate::map_comp!(@__ for $($t)+)
-            .collect::<::std::collections::HashMap<_, _>>()
+        $crate::map_iter_comp!(@__ for $($t)+)
     };
 }
 
