@@ -2,7 +2,13 @@
 name = "rustcomp"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license = "MIT"
+authors = ["Hunter Davenport"]
+categories = ["rust-patterns"]
+description = "Adds vector, map, set, and iterator comprehensions to Rust."
+documentation = "https://docs.rs/rustcomp"
+keywords = ["vector", "set", "map", "comprehension", "macro", "python"]
+readme = "README.md"
+repository = "https://github.com/dablenparty/rustcomp"
 
 [dependencies]
