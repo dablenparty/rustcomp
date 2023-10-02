@@ -1,9 +1,9 @@
 #![warn(clippy::all, clippy::pedantic)]
 
-/// This macro was designed to add Python-like list comprehensions to Rust.
-/// It returns an vector containing the results of the comprehension. If
-/// you want the raw iterator, you can use the [`iter_comp!`] macro (that's
-/// what this macro uses internally).
+/// Adds Python-like list comprehensions to Rust. This particular macro returns
+/// a `Vec` containing the results of the comprehension. If you want the raw
+/// iterator, you can use the [`iter_comp!`] macro (that's what this macro uses
+/// internally).
 ///
 /// # How to use
 /// The core idea is the same as Python, although the syntax is a bit different.
@@ -46,7 +46,15 @@
 /// let v = vec_comp![for Point { x, y } in points => x + y];
 /// # assert_eq!(v, vec![3, 7, 11]);
 /// ```
-/// and anything else that destructures!
+/// and anything else that destructures! You can also nest comprehensions:
+/// ```rust
+/// # use rustcomp::vec_comp;
+/// let matrix = //...
+/// # vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]];
+/// let v = vec_comp![for row in matrix; for col in row => col, if col % 2 == 0];
+/// # assert_eq!(v, vec![2, 4, 6, 8]);
+/// ```
+/// We could keep going with the nesting, but I think you get the idea.
 #[macro_export]
 macro_rules! vec_comp {
     [$($t:tt)*] => {
@@ -58,7 +66,12 @@ macro_rules! vec_comp {
 /// For more information, see [`vec_comp!`].
 #[macro_export]
 macro_rules! iter_comp {
-    (for $($vars:pat),* in $iter:expr => $mapper:expr $(, if $guard:expr)? $(,)?) => {
+    (@__ for $($vars:pat),+ in $iter:expr; $($recurse:tt)+) => (
+        $iter
+            .into_iter()
+            .flat_map(|$($vars),*| $crate::iter_comp!(@__ $($recurse)+))
+    );
+    (@__ for $($vars:pat),+ in $iter:expr => $mapper:expr $(, if $guard:expr)? $(,)?) => (
         $iter
             .into_iter()
             .filter_map(|$($vars),*| {
@@ -69,7 +82,10 @@ macro_rules! iter_comp {
                     None
                 }
             })
-    };
+    );
+    (for $($t:tt)+) => (
+        $crate::iter_comp!(@__ for $($t)+)
+    );
 }
 
 #[cfg(test)]
@@ -93,15 +109,10 @@ mod tests {
         let expected = v
             .clone()
             .into_iter()
-            .filter_map(|v| {
-                if v.iter().any(|&i| i % 2 == 0) {
-                    Some(v)
-                } else {
-                    None
-                }
-            })
+            .flatten()
+            .filter(|x| x % 2 == 0)
             .collect::<Vec<_>>();
-        let actual = vec_comp![for row in v; for x in row => row, if x % 2 == 0];
+        let actual = vec_comp![for row in v; for x in row => x, if x % 2 == 0];
         assert_eq!(expected, actual);
     }
 
