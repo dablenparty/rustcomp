@@ -1,5 +1,7 @@
 #![warn(clippy::all, clippy::pedantic)]
 
+pub mod maps;
+
 /// Adds Python-like list comprehensions to Rust. This particular macro returns
 /// a `Vec` containing the results of the comprehension. If you want the raw
 /// iterator, you can use the [`iter_comp!`] macro (that's what this macro uses
