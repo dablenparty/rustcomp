@@ -1,4 +1,32 @@
 #![warn(clippy::all, clippy::pedantic)]
+//! Adds vector, set, map, and iterator comprehensions to Rust. This
+//! is achieved through various functional macros, which are:
+//! - [`vec_comp!`]: returns a `Vec`
+//! - [`set_comp!`]: returns a `HashSet`
+//! - [`map_comp!`]: returns a `HashMap`
+//! - [`iter_comp!`]: returns an iterator (this is used internally by
+//!                   `vec_comp` and `set_comp`)
+//!
+//! ## How to use
+//!
+//! For a full explanation of how to use the macros, see the documentation for
+//! `vec_comp!`. `map_comp!` is a bit different, but it has examples as well.
+//!
+//! ## What about `mapcomp`?
+//!
+//! I'm aware of the existence of the [`mapcomp`](https://docs.rs/mapcomp/latest/mapcomp/index.html)
+//! crate, although it differs from this crate in a few ways. For starters,
+//! `mapcomp` aims to make their syntax as close to Python as possible and
+//! I think they did a great job; this crate is not trying to do that. The
+//! goal of this crate is to add comprehensions to Rust in an idiomatic way
+//! so that the syntax flows naturally with the rest of the language while
+//! still being concise and powerful.
+//!
+//! On a more technical note, `mapcomp` uses generators internally which was
+//! okay for Rust 2018, but generators and `yield`-ing are now experimental
+//! features. This was a big inspiration for this crate, as I wanted to make
+//! a macro-based solution that didn't require nightly, so I settled on iterators
+//! in lieu of generators.
 
 /// Performs a special comprehension that returns a `HashMap`. This is
 /// different from the other comprehensions in that it requires two expressions:
@@ -35,21 +63,20 @@ macro_rules! map_comp {
                 }
             })
     };
-    {for $($t:tt)+} => {
+    (for $($t:tt)+) => {
         $crate::map_comp!(@__ for $($t)+)
             .collect::<::std::collections::HashMap<_, _>>()
     };
 }
 
-/// Adds Python-like list comprehensions to Rust. This particular macro returns
-/// a `Vec` containing the results of the comprehension. If you want the raw
-/// iterator, you can use the [`iter_comp!`] macro (that's what this macro uses
-/// internally).
+/// Performs a comprehension and returns a `Vec` containing the results. If you
+/// want the raw iterator, you can use the [`iter_comp!`] macro (that's what
+/// this macro uses internally anyway).
 ///
-/// # How to use
+/// # Usage
 ///
-/// The core idea is the same as Python, although the syntax is a bit different.
-/// A simple comprehension looks like this:
+/// The core idea is simple: provide an easy and concise way to map, filter,
+/// and flatten iterators. For example, a basic comprehension looks like this:
 ///
 /// ```rust
 /// # use rustcomp::vec_comp;
@@ -129,7 +156,7 @@ macro_rules! vec_comp {
 /// ```
 #[macro_export]
 macro_rules! set_comp {
-    [$($t:tt)*] => {
+    ($($t:tt)*) => {
         $crate::iter_comp!($($t)*).collect::<::std::collections::HashSet<_>>()
     };
 }
