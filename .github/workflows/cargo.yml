@@ -19,4 +19,4 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Build and test with cargo
-        run: cargo test --verbose --tests --all-features --workspace
+        run: cargo test --verbose --all-features --workspace
