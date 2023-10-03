@@ -1,26 +1,108 @@
 #![warn(clippy::all, clippy::pedantic)]
 //! Adds vector, set, map, and iterator comprehensions to Rust. This
-//! is achieved through two types of functional macro: iterator comprehensions
-//! and collection comprehensions. Iterator comprehensions return the raw iterator
-//! while collection comprehensions return a collection (e.g. `Vec`, `HashSet`, etc.).
+//! is achieved through a functional macro, [`iter_comp!`], that
+//! expands to iterators.
 //!
-//! ## Iterator Comprehensions
+//! # Usage
 //!
-//! - [`iter_comp!`] yields values
-//! - [`map_iter_comp!`] yields key-value pairs as tuples
+//! ## Basic Usage
 //!
-//! ## Collection Comprehensions
+//! The core idea is simple: provide an easy and concise way to map, filter,
+//! and flatten iterators. These examples use [`vec_comp!`] to keep things
+//! short and neat, but all comprehension macros use the same syntax.
+//! With that said, a basic comprehension looks like this:
 //!
-//! - [`vec_comp!`] returns `Vec`
-//! - [`set_comp!`] returns `HashSet`
-//! - [`map_comp!`] returns `HashMap`
+//! ```rust
+//! # use rustcomp::vec_comp;
+//! let v = vec_comp![for x in 0..10 => x];
+//! let it = (0..10).collect::<Vec<_>>();
+//! assert_eq!(v, it);
+//! ```
 //!
-//! ## How to use
+//! This will make a vector with the numbers 0 through 9... not very useful,
+//! is it? Let's only keep the evens by adding a guard expression:
 //!
-//! For a full explanation of how to use the macros, see the documentation for
-//! `vec_comp!`. `map_comp!` is a bit different, but it has examples as well.
+//! ```rust
+//! # use rustcomp::vec_comp;
+//! let v = vec_comp![for x in 0..10 => x, if x % 2 == 0];
+//! let it = (0..10).filter(|x| x % 2 == 0).collect::<Vec<_>>();
+//! assert_eq!(v, it);
+//! ```
 //!
-//! ## What about `mapcomp`?
+//! Now we're getting somewhere! You can also map the values. For example,
+//! let's double the values:
+//!
+//! ```rust
+//! # use rustcomp::vec_comp;
+//! let v = vec_comp![for x in 0..10 => x * 2, if x % 2 == 0];
+//! let it = (0..10)
+//!     .filter(|x| x % 2 == 0)
+//!     .map(|x| x * 2)
+//!     .collect::<Vec<_>>();
+//! assert_eq!(v, it);
+//! ```
+//!
+//! Notice how the `map` call comes _after_ the `filter` call in the iterator chain.
+//! This is to show how the comprehension works: the guard applies to the _input_ value,
+//! not the output value.
+//!
+//! ## Destructuring
+//! Comprehensions also support destructuring, for example, tuples:
+//!
+//! ```rust
+//! # use rustcomp::vec_comp;
+//! let pairs = vec![(1, 2), (3, 4), (5, 6)];
+//! let v = vec_comp![for (x, y) in &pairs => x + y];
+//! let it = pairs.into_iter().map(|(x, y)| x + y).collect::<Vec<_>>();
+//! assert_eq!(v, it);
+//! ```
+//!
+//! or structs:
+//!
+//! ```rust
+//! # use rustcomp::vec_comp;
+//! struct Point {
+//!   x: i32,
+//!   y: i32,
+//! }
+//!
+//! let points = vec![Point { x: 1, y: 2 }, Point { x: 3, y: 4 }, Point { x: 5, y: 6 }];
+//! let v = vec_comp![for Point { x, y } in &points => x + y];
+//! let it = points.into_iter().map(|Point { x, y }| x + y).collect::<Vec<_>>();
+//! assert_eq!(v, it);
+//! ```
+//!
+//! ## Nesting
+//! Nested iterators are supported up to the recursion limit:
+//!
+//! ```rust
+//! # use rustcomp::vec_comp;
+//! let matrix = vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]];
+//! // also a good example of passing a reference to the comprehension
+//! let v = vec_comp![for row in &matrix; for col in row => *col * 2, if *col % 2 == 0];
+//! let it = matrix
+//!     .into_iter()
+//!     .flatten()
+//!     .filter(|x| x % 2 == 0)
+//!     .map(|x| x * 2)
+//!     .collect::<Vec<_>>();
+//! assert_eq!(v, it);
+//! ```
+//!
+//! ## Advanced Examples
+//!
+//! See the [`iter_comp!`] macro documentation for some advanced examples,
+//! like creating a `HashMap` from a comprehension.
+//!
+//! ## Note on Examples
+//!
+//! It's important to note that iterator examples used to test the
+//! comprehensions are _equivalent_ to the comprehensions, but not
+//! _identical_. The macros expand to nested chains of `flat_map`
+//! and `filter_map` calls; the examples are written for clarity
+//! and to show the order of operations in the comprehension.
+//!
+//! # What about `mapcomp`?
 //!
 //! I'm aware of the existence of the [`mapcomp`](https://docs.rs/mapcomp/latest/mapcomp/index.html)
 //! crate, although it differs from this crate in a few ways. For starters,
@@ -36,126 +118,18 @@
 //! a macro-based solution that didn't require nightly, so I settled on iterators
 //! in lieu of generators.
 
-// TODO: restructure docs to be easier to navigate
-
-/// Performs a special comprehension that returns a `HashMap`. This is
-/// different from the other comprehensions in that it requires two expressions:
-/// one for the key and one for the value. For more exhaustive documentation
-/// and usage examples, see [`vec_comp!`].
+/// Convenience macro that wraps [`iter_comp!`] and returns a `Vec` containing
+/// the results.
 ///
 /// # Example
 ///
-/// Mapping last names to first names:
-///
 /// ```rust
-/// # use rustcomp::map_comp;
-/// let names = vec![("John", "Smith"), ("Jane", "Doe"), ("Bob", "Smith")];
-/// let m = map_comp! {for (first, last) in names => last, first, if last == "Smith"};
-/// # assert_eq!(m, vec![("Smith", "John"), ("Smith", "Bob")].into_iter().collect::<std::collections::HashMap<_, _>>());
-/// ```
-#[macro_export]
-macro_rules! map_comp {
-    ($($t:tt)*) => (
-        $crate::map_iter_comp!($($t)*)
-            .collect::<::std::collections::HashMap<_, _>>()
-    );
-}
-
-/// Generates an iterator that yields the results of the comprehension. This
-/// macro is specialized for `HashMap`s. For more information, see
-/// [`map_comp!`].
-#[macro_export]
-macro_rules! map_iter_comp {
-    // the implementation is EXTREMELY similar to iter_comp, but not identical
-    (@__ for $($vars:pat),+ in $iter:expr; $($recurse:tt)+) => {
-        $iter
-            .into_iter()
-            .flat_map(|$($vars),*| $crate::map_iter_comp!(@__ $($recurse)+))
-    };
-    (@__ for $($vars:pat),+ in $iter:expr => $keymap:expr, $valmap:expr $(, if $guard:expr)? $(,)?) => {
-        $iter
-            .into_iter()
-            .filter_map(|$($vars),*| {
-                // `&& true` is a trick to make the guard optional
-                if $($guard &&)? true {
-                    Some(($keymap, $valmap))
-                } else {
-                    None
-                }
-            })
-    };
-    (for $($t:tt)+) => {
-        $crate::map_iter_comp!(@__ for $($t)+)
-    };
-}
-
-/// Performs a comprehension and returns a `Vec` containing the results. If you
-/// want the raw iterator, you can use the [`iter_comp!`] macro (that's what
-/// this macro uses internally anyway).
-///
-/// # Usage
-///
-/// The core idea is simple: provide an easy and concise way to map, filter,
-/// and flatten iterators. For example, a basic comprehension looks like this:
-///
-/// ```rust
-/// # use rustcomp::vec_comp;
-/// let v = vec_comp![for x in 0..10 => x];
-/// # assert_eq!(v, (0..10).collect::<Vec<_>>());
-/// ```
-///
-/// This will make a vector with the numbers 0 through 9... not very useful,
-/// is it? Let's add a filter:
-///
-/// ```rust
-/// # use rustcomp::vec_comp;
+/// # use rustcomp::{iter_comp, vec_comp};
 /// let v = vec_comp![for x in 0..10 => x, if x % 2 == 0];
-/// # assert_eq!(v, (0..10).filter(|x| x % 2 == 0).collect::<Vec<_>>());
+/// // is equivalent to:
+/// let it = iter_comp!(for x in 0..10 => x, if x % 2 == 0).collect::<Vec<_>>();
+/// assert_eq!(it, v);
 /// ```
-///
-/// Now we only get even numbers. We can also map the values:
-///
-/// ```rust
-/// # use rustcomp::vec_comp;
-/// let v = vec_comp![for x in 0..10 => x * 2, if x % 2 == 0];
-/// # assert_eq!(v, (0..10).filter(|x| x % 2 == 0).map(|x| x * 2).collect::<Vec<_>>());
-/// ```
-///
-/// Now we get the even numbers, doubled. What's better than that? Well,
-/// thanks to Rust's expression syntax, you can destructure tuples:
-///
-/// ```rust
-/// # use rustcomp::vec_comp;
-/// let pairs = vec![(1, 2), (3, 4), (5, 6)];
-/// let v = vec_comp![for (x, y) in pairs => x + y];
-/// # assert_eq!(v, vec![3, 7, 11]);
-/// ```
-///
-/// and structs:
-///
-/// ```rust
-/// # use rustcomp::vec_comp;
-/// # struct Point {
-/// #    x: i32,
-/// #   y: i32,
-/// # }
-/// let points = //...
-/// # vec![Point { x: 1, y: 2 }, Point { x: 3, y: 4 }, Point { x: 5, y: 6 }];
-/// let v = vec_comp![for Point { x, y } in points => x + y];
-/// # assert_eq!(v, vec![3, 7, 11]);
-/// ```
-///
-/// and anything else that destructures! You can also nest comprehensions:
-///
-/// ```rust
-/// # use rustcomp::vec_comp;
-/// let matrix = //...
-/// # vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]];
-/// let v = vec_comp![for row in matrix; for col in row => col, if col % 2 == 0];
-/// # assert_eq!(v, vec![2, 4, 6, 8]);
-/// ```
-///
-/// We could keep going with the nesting, but I think you get the idea.
 #[macro_export]
 macro_rules! vec_comp {
     [$($t:tt)*] => {
@@ -163,16 +137,19 @@ macro_rules! vec_comp {
     };
 }
 
-/// Performs a comprehension and returns a `HashSet` containing the results. For
-/// more information, see [`vec_comp!`].
+/// Convenience macro that wraps [`iter_comp!`] and returns a `HashSet` containing
+/// the results.
 ///
 /// # Example
+///
 /// ```rust
-/// # use rustcomp::set_comp;
-/// let matrix = //...
-/// # vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]];
-/// let v = set_comp![for row in matrix; for col in row => col, if col % 2 == 0];
-/// # assert_eq!(v, vec![2, 4, 6, 8].into_iter().collect::<std::collections::HashSet<_>>());
+/// # use rustcomp::{iter_comp, set_comp};
+/// # use std::collections::HashSet;
+/// let matrix = vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]];
+/// let s = set_comp![for row in &matrix; for col in row => *col, if col % 2 == 0];
+/// // is equivalent to:
+/// let it = iter_comp!(for row in matrix; for col in row => col, if col % 2 == 0).collect::<HashSet<_>>();
+/// assert_eq!(s, it);
 /// ```
 #[macro_export]
 macro_rules! set_comp {
@@ -181,8 +158,33 @@ macro_rules! set_comp {
     };
 }
 
-/// Generates an iterator that yields the results of the comprehension.
-/// For more information, see [`vec_comp!`].
+/// Generates an iterator that yields the results of the comprehension. The
+/// syntax allows for filtering, mapping, and flattening iterators (in that
+/// order).
+///
+/// There are 3 main components to a comprehension:
+/// - The `for-in` clause, which iterates over the input
+/// - The guard expression, which filters the input
+/// - The mapping expression, which transforms the input. If the guard is
+///   present, the mapping expression is only applied to values that pass
+///   the guard.
+///
+/// # Examples
+///
+/// Comprehensions can be as simple or complex as you want. They can collect
+/// the input, filter it, map it, and flatten it all in one go. For example,
+/// here's how you can create a `HashMap` of numbers and their squares using
+/// a comprehension:
+///
+/// ```rust
+/// # use rustcomp::iter_comp;
+/// # use std::collections::HashMap;
+/// let m = iter_comp!(for i in 0..10 => (i, i * i)).collect::<HashMap<_, _>>();
+/// let it = (0..10).map(|i| (i, i * i)).collect::<HashMap<_, _>>();
+/// assert_eq!(m, it);
+/// ```
+///
+/// See the [crate-level documentation](crate) for more examples.
 #[macro_export]
 macro_rules! iter_comp {
     (@__ for $($vars:pat),+ in $iter:expr; $($recurse:tt)+) => (
@@ -209,20 +211,6 @@ macro_rules! iter_comp {
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn test_nested_map_comp() {
-        let v = vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]];
-        let expected = v
-            .clone()
-            .into_iter()
-            .flatten()
-            .filter(|x| x % 2 == 0)
-            .map(|x| (x.to_string(), x))
-            .collect::<std::collections::HashMap<_, _>>();
-        let actual = map_comp! {for row in v; for x in row => x.to_string(), x, if x % 2 == 0};
-        assert_eq!(expected, actual);
-    }
-
     #[test]
     fn test_vec_comp() {
         let v: Vec<u32> = vec![1, 2, 3, 4, 5];
