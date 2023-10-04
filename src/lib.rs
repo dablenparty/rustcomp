@@ -131,8 +131,8 @@
 //! goal of this crate is to add comprehensions to Rust in an idiomatic way
 //! with a syntax that flows naturally with the rest of the language while
 //! still being concise and powerful. `mapcomp` also provides multiple
-//! macros for different types of comprehensions while this crate only
-//! provides only one.
+//! macros for different types of comprehensions while this crate provides
+//! only one.
 //!
 //! On a more technical note, `mapcomp` uses generators internally which was
 //! okay for Rust 2018, but generators and `yield`-ing are now experimental
