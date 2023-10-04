@@ -3,9 +3,7 @@
 //! is achieved through a functional macro, [`iter_comp!`], that
 //! expands to iterators.
 //!
-//! # Usage
-//!
-//! ## Basic Usage
+//! # Basic Usage
 //!
 //! The core idea is simple: provide an easy and concise way to map, filter,
 //! and flatten iterators. These examples use [`vec_comp!`] to keep things
@@ -46,7 +44,7 @@
 //! This is to show how the comprehension works: the guard applies to the _input_ value,
 //! not the output value.
 //!
-//! ## Destructuring
+//! # Destructuring
 //! Comprehensions also support destructuring, for example, tuples:
 //!
 //! ```rust
@@ -65,36 +63,45 @@
 //!   x: i32,
 //!   y: i32,
 //! }
+//! #
+//! # impl Point {
+//! #    fn new(x: i32, y: i32) -> Self {
+//! #       Self { x, y }
+//! #   }
+//! # }
 //!
-//! let points = vec![Point { x: 1, y: 2 }, Point { x: 3, y: 4 }, Point { x: 5, y: 6 }];
+//! let points = vec![Point::new(1, 2), Point::new(3, 4), Point::new(5, 6)];
 //! let v = vec_comp![for Point { x, y } in &points => x + y];
 //! let it = points.into_iter().map(|Point { x, y }| x + y).collect::<Vec<_>>();
 //! assert_eq!(v, it);
 //! ```
 //!
-//! ## Nesting
-//! Nested iterators are supported up to the recursion limit:
+//! # Nesting
+//! Nested iterators are supported up to the recursion limit by chaining
+//! the `in` clauses:
 //!
 //! ```rust
 //! # use rustcomp::vec_comp;
 //! let matrix = vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]];
-//! // also a good example of passing a reference to the comprehension
-//! let v = vec_comp![for row in &matrix; for col in row => *col * 2, if *col % 2 == 0];
-//! let it = matrix
-//!     .into_iter()
-//!     .flatten()
-//!     .filter(|x| x % 2 == 0)
-//!     .map(|x| x * 2)
-//!     .collect::<Vec<_>>();
+//! let v = vec_comp![for row in &matrix, col in row => *col * 2, if *col % 2 == 0];
+//! // nested loops are a much nicer example than iterators here
+//! let mut it = Vec::new();
+//! for row in &matrix {
+//!     for col in row {
+//!         if *col % 2 == 0 {
+//!            it.push(*col * 2);
+//!        }
+//!     }
+//! }
 //! assert_eq!(v, it);
 //! ```
 //!
-//! ## Advanced Examples
+//! # Advanced Examples
 //!
 //! See the [`iter_comp!`] macro documentation for some advanced examples,
 //! like creating a `HashMap` from a comprehension.
 //!
-//! ## Note on Examples
+//! # Note on Examples
 //!
 //! It's important to note that iterator examples used to test the
 //! comprehensions are _equivalent_ to the comprehensions, but not
@@ -146,9 +153,9 @@ macro_rules! vec_comp {
 /// # use rustcomp::{iter_comp, set_comp};
 /// # use std::collections::HashSet;
 /// let matrix = vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]];
-/// let s = set_comp![for row in &matrix; for col in row => *col, if col % 2 == 0];
+/// let s = set_comp![for row in &matrix, col in row => *col, if col % 2 == 0];
 /// // is equivalent to:
-/// let it = iter_comp!(for row in matrix; for col in row => col, if col % 2 == 0).collect::<HashSet<_>>();
+/// let it = iter_comp!(for row in matrix, col in row => col, if col % 2 == 0).collect::<HashSet<_>>();
 /// assert_eq!(s, it);
 /// ```
 #[macro_export]
@@ -187,12 +194,12 @@ macro_rules! set_comp {
 /// See the [crate-level documentation](crate) for more examples.
 #[macro_export]
 macro_rules! iter_comp {
-    (@__ for $($vars:pat),+ in $iter:expr; $($recurse:tt)+) => (
+    (@__ $($vars:pat),+ in $iter:expr, $($recurse:tt)+) => (
         $iter
             .into_iter()
             .flat_map(|$($vars),*| $crate::iter_comp!(@__ $($recurse)+))
     );
-    (@__ for $($vars:pat),+ in $iter:expr => $mapper:expr $(, if $guard:expr)? $(,)?) => (
+    (@__ $($vars:pat),+ in $iter:expr => $mapper:expr $(, if $guard:expr)? $(,)?) => (
         $iter
             .into_iter()
             .filter_map(|$($vars),*| {
@@ -205,7 +212,7 @@ macro_rules! iter_comp {
             })
     );
     (for $($t:tt)+) => (
-        $crate::iter_comp!(@__ for $($t)+)
+        $crate::iter_comp!(@__ $($t)+)
     );
 }
 
@@ -233,7 +240,7 @@ mod tests {
             .flatten()
             .filter(|x| x % 2 == 0)
             .collect::<Vec<_>>();
-        let actual = vec_comp![for row in v; for x in row => x, if x % 2 == 0];
+        let actual = vec_comp![for row in v, x in row => x, if x % 2 == 0];
         assert_eq!(expected, actual);
     }
 
