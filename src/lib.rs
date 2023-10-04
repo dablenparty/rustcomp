@@ -165,8 +165,8 @@
 /// # use rustcomp::rcomp;
 /// # use std::collections::HashMap;
 /// let m = rcomp![HashMap<_, _>; for i in 0..10 => (i, i * i)];
-/// let it = (0..10).map(|i| (i, i * i)).collect::<HashMap<_, _>>();
-/// assert_eq!(m, it);
+/// # let it = (0..10).map(|i| (i, i * i)).collect::<HashMap<_, _>>();
+/// # assert_eq!(m, it);
 /// ```
 ///
 /// Another example is removing duplicates from a `Vec` by converting it to
@@ -177,10 +177,13 @@
 /// # use std::collections::HashSet;
 /// let v = vec![1, 2, 3, 4, 5, 1, 2, 3, 4, 5];
 /// let s = rcomp![Vec<_>; for i in rcomp![HashSet<_>; for j in &v => *j] => i];
-/// let it = v
-///     .into_iter().collect::<HashSet<_>>()
-///     .into_iter().collect::<Vec<_>>();
-/// assert_eq!(s, it);
+/// # let mut s = s;
+/// # let mut it = v
+/// #     .into_iter().collect::<HashSet<_>>()
+/// #     .into_iter().collect::<Vec<_>>();
+/// # it.sort();
+/// # s.sort();
+/// # assert_eq!(s, it);
 /// ```
 ///
 /// See the [crate-level documentation](crate) for more examples.
